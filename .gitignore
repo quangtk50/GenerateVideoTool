@@ -1,4 +1,8 @@
 .env
 __pycache__/
-data/
 *.pyc
+.venv/
+data/
+assets/music/*
+!assets/music/README.md
+.pytest_cache/

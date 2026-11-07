@@ -1,4 +1,5 @@
-"""Lưu dự án dạng JSON: data/projects/<id>/project.json (MVP, sau này chuyển sang Postgres)."""
+"""Lưu dự án dạng JSON: data/projects/<id>/project.json.
+Đơn giản, dễ sao lưu; muốn nhiều máy chủ cùng chạy thì chuyển sang PostgreSQL (xem docs/KIEN_TRUC.md)."""
 import threading
 import uuid
 from datetime import datetime
@@ -17,10 +18,10 @@ def project_dir(pid: str) -> Path:
     return d
 
 
-def create(brief: Brief) -> Project:
+def create(brief: Brief, status: Status = Status.WRITING) -> Project:
     pid = datetime.now().strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:4]
     p = Project(id=pid, created_at=datetime.now().isoformat(timespec="seconds"),
-                brief=brief, status=Status.WRITING)
+                brief=brief, status=status)
     save(p)
     return p
 
@@ -35,7 +36,8 @@ def save(p: Project) -> None:
 
 def load(pid: str) -> Project:
     with _lock:
-        return Project.model_validate_json((project_dir(pid) / "project.json").read_text(encoding="utf-8"))
+        f = config.DATA_DIR / pid / "project.json"
+        return Project.model_validate_json(f.read_text(encoding="utf-8"))
 
 
 def update(pid: str, fn: Callable[[Project], None]) -> Project:
@@ -45,6 +47,14 @@ def update(pid: str, fn: Callable[[Project], None]) -> Project:
         fn(p)
         save(p)
         return p
+
+
+def set_status(pid: str, status: Status) -> None:
+    def f(p: Project):
+        p.status = status
+        if status != Status.FAILED:
+            p.error = None
+    update(pid, f)
 
 
 def log(pid: str, msg: str) -> None:
@@ -58,6 +68,6 @@ def list_all() -> List[Project]:
         if (d / "project.json").exists():
             try:
                 out.append(load(d.name))
-            except Exception:
+            except Exception:  # noqa: BLE001 - bỏ qua file hỏng
                 pass
     return out

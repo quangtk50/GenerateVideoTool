@@ -1,18 +1,39 @@
 {% extends "base.html" %}
+{% block head %}{% if projects|selectattr('status', 'in', busy)|list %}<meta http-equiv="refresh" content="8">{% endif %}{% endblock %}
 {% block content %}
 <div class="card">
   <h1>Tạo video mới</h1>
   <form method="post" action="/projects">
-    <label>Chủ đề / ý tưởng</label>
-    <textarea name="topic" required placeholder="VD: 3 thói quen buổi sáng giúp làm việc hiệu quả hơn"></textarea>
+    <label>Chủ đề / ý tưởng <span class="muted">(để trống = AI tự nghĩ ý tưởng)</span></label>
+    <textarea name="topic" placeholder="VD: 3 thói quen buổi sáng giúp làm việc hiệu quả hơn"></textarea>
     <div class="row">
-      <div><label>Nền tảng</label><select name="platform"><option>TikTok</option><option>Reels</option><option>YouTube Shorts</option></select></div>
-      <div><label>Thời lượng (giây)</label><input type="number" name="duration" value="30" min="10" max="90"></div>
+      <div><label>Nền tảng chính</label><select name="platform"><option>TikTok</option><option>Reels</option><option>YouTube Shorts</option></select></div>
+      <div><label>Thời lượng (giây)</label><input type="number" name="duration" value="30" min="10" max="180"></div>
       <div><label>Tone</label><input name="tone" value="cuốn hút, cảm xúc"></div>
       <div><label>Đối tượng</label><input name="audience" placeholder="VD: dân văn phòng 22-30"></div>
       <div><label>Ngôn ngữ</label><input name="language" value="Tiếng Việt"></div>
+      <div><label>Độ phân giải</label><select name="resolution">
+        {% for r in resolutions %}{% set s = frame_size(r) %}
+        <option value="{{ r }}" {% if r == default_resolution %}selected{% endif %}>{{ r }} ({{ s[0] }}×{{ s[1] }})</option>
+        {% endfor %}</select></div>
+      <div style="grid-column: span 2"><label>Nguồn hình</label><select name="visual_mode">
+        <option value="auto">Tự động theo cảnh (đạo diễn chọn)</option>
+        <option value="ai_video">Toàn bộ AI video</option>
+        <option value="ai_image">Ảnh AI + hiệu ứng zoom (rẻ)</option>
+        <option value="stock">Video stock (miễn phí)</option></select></div>
     </div>
-    <div class="actions"><button class="primary" type="submit">Viết kịch bản</button></div>
+    <label>Đăng lên</label>
+    <div>{% for k, v in platforms.items() %}<label class="inline"><input type="checkbox" name="platforms" value="{{ k }}" {% if k in default_platforms %}checked{% endif %}> {{ v }}</label>{% endfor %}</div>
+    <label>Tuỳ chọn</label>
+    <div>
+      <label class="inline"><input type="checkbox" name="with_music" value="1" checked> Nhạc nền</label>
+      <label class="inline"><input type="checkbox" name="auto_approve_script" value="1"> Tự duyệt kịch bản (bỏ Cổng 1)</label>
+      <label class="inline"><input type="checkbox" name="auto_publish" value="1"> Tự đăng khi QA đạt (bỏ Cổng 2)</label>
+    </div>
+    <div class="actions">
+      <button class="primary" type="submit" name="mode" value="manual">Viết kịch bản</button>
+      <button class="ok" type="submit" name="mode" value="auto">Tự tạo ý tưởng &amp; viết kịch bản</button>
+    </div>
   </form>
 </div>
 
@@ -20,11 +41,12 @@
   <h2>Dự án</h2>
   {% if projects %}
   <table>
-    <tr><th>Tạo lúc</th><th>Chủ đề</th><th>Trạng thái</th></tr>
+    <tr><th>Tạo lúc</th><th>Chủ đề</th><th>Trạng thái</th><th>Đăng</th></tr>
     {% for p in projects %}
     <tr><td class="muted">{{ p.created_at.replace('T',' ') }}</td>
         <td><a href="/projects/{{ p.id }}">{{ p.script.title if p.script else p.brief.topic }}</a></td>
-        <td><span class="badge {{ p.status.value }}">{{ labels[p.status] }}</span></td></tr>
+        <td><span class="badge {{ p.status.value }}">{{ labels[p.status] }}</span></td>
+        <td class="muted">{% for r in p.publish %}{{ r.platform }}: {{ r.status }}{% if not loop.last %}, {% endif %}{% endfor %}</td></tr>
     {% endfor %}
   </table>
   {% else %}<p class="muted">Chưa có dự án nào.</p>{% endif %}

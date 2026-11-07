@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block head %}{% if p.status in busy %}<meta http-equiv="refresh" content="4">{% endif %}{% endblock %}
+{% block title %}{{ p.script.title if p.script else p.brief.topic }}{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>{{ p.script.title if p.script else p.brief.topic }}</h1>
+  <span class="badge {{ p.status.value }}">{{ labels[p.status] }}</span>
+  <span class="muted">· {{ p.brief.platform }} · {{ p.brief.duration }}s · {{ p.brief.resolution }} · {{ p.brief.tone }}</span>
+  {% if p.script %}<p class="muted">Ý tưởng: {{ p.brief.topic }}{% if p.brief.audience %} · Đối tượng: {{ p.brief.audience }}{% endif %}</p>{% endif %}
+  {% if p.error %}<p class="err">{{ p.error }}</p>{% endif %}
+  {% if p.status in busy %}<p class="muted">Trang tự làm mới mỗi 4 giây…</p>{% endif %}
+</div>
+
+{% if p.demo_file and p.status.value == 'demo_ready' %}
+<div class="card">
+  <h2>Video demo</h2>
+  <video controls src="/media/{{ p.id }}/{{ p.demo_file }}?v={{ p.log|length }}" style="max-height:640px"></video>
+  <p class="muted">Video {{ p.brief.resolution }}. Nếu shot nào chưa ổn, sửa prompt và bấm "Render lại" ở bảng bên dưới.</p>
+</div>
+{% endif %}
+
+{% if p.script and p.status.value == 'review_script' %}
+<form class="card" method="post" action="/projects/{{ p.id }}/script">
+  <h2>Cổng 1 · Duyệt kịch bản <span class="muted">(tổng {{ '%.0f'|format(p.script.total_duration) }}s, {{ p.script.scenes|length }} cảnh)</span></h2>
+  <label>Tiêu đề</label><input name="title" value="{{ p.script.title }}">
+  <label>Hook (3 giây đầu)</label><input name="hook" value="{{ p.script.hook }}">
+  {% for sc in p.script.scenes %}
+  <div class="scene">
+    <div class="scene-head"><strong>Cảnh {{ sc.id }}</strong>
+      <span class="muted"><label style="display:inline">Giây</label>
+        <input style="width:80px;display:inline" type="number" step="0.5" min="1" max="15" name="scene_{{ sc.id }}_duration" value="{{ sc.duration }}">
+        <label style="display:inline"><input type="checkbox" style="width:auto" name="scene_{{ sc.id }}_delete" value="1"> xoá</label></span></div>
+    <label>Hình ảnh</label><textarea name="scene_{{ sc.id }}_visual">{{ sc.visual }}</textarea>
+    <label>Lời thoại / phụ đề</label><textarea name="scene_{{ sc.id }}_voiceover">{{ sc.voiceover }}</textarea>
+  </div>
+  {% endfor %}
+  <label>CTA</label><input name="cta" value="{{ p.script.cta }}">
+  <p class="muted">Nhạc gợi ý: {{ p.script.music_brief.mood }} · {{ p.script.music_brief.genre }} · {{ p.script.music_brief.bpm }} BPM</p>
+  <label>Góp ý để Claude viết lại (nếu cần)</label>
+  <textarea name="feedback" placeholder="VD: hook mạnh hơn, thêm yếu tố hài hước, rút còn 20 giây"></textarea>
+  <div class="actions">
+    <button type="submit" name="action" value="save">Lưu chỉnh sửa</button>
+    <button type="submit" name="action" value="rewrite">Viết lại theo góp ý</button>
+    <button class="ok" type="submit" name="action" value="approve">Duyệt và render demo</button>
+  </div>
+</form>
+{% endif %}
+
+{% if p.shot_list %}
+<div class="card">
+  <h2>Shot list và render</h2>
+  <p class="muted">Phong cách: {{ p.shot_list.style }}{% if p.shot_list.characters %} · Nhân vật: {{ p.shot_list.characters }}{% endif %}</p>
+  <table>
+    <tr><th>#</th><th>Máy quay</th><th>Prompt</th><th>Render</th></tr>
+    {% for sh in p.shot_list.shots %}
+    {% set r = (p.renders|selectattr('scene_id','equalto',sh.scene_id)|list)[0] %}
+    <tr>
+      <td>{{ sh.scene_id }}</td>
+      <td class="muted">{{ sh.framing }}<br>{{ sh.angle }}<br>{{ sh.camera_move }}<br>{{ sh.emotion }}</td>
+      <td>
+        <form method="post" action="/projects/{{ p.id }}/shots/{{ sh.scene_id }}/rerender">
+          <textarea name="prompt" style="min-height:90px">{{ sh.prompt }}</textarea>
+          {% if p.status not in busy %}<button type="submit" style="margin-top:6px">Render lại shot này</button>{% endif %}
+        </form>
+      </td>
+      <td style="width:170px">
+        {{ r.status }}{% if r.error %}<div class="err">{{ r.error[:200] }}</div>{% endif %}
+        {% if r.file %}<video src="/media/{{ p.id }}/{{ r.file }}" muted controls style="width:150px;margin-top:6px"></video>{% endif %}
+        <div class="muted">seed {{ r.seed }}</div>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+{% if p.script and p.status.value != 'review_script' %}
+<div class="card">
+  <h2>Kịch bản đã duyệt</h2>
+  <p><strong>Hook:</strong> {{ p.script.hook }}</p>
+  <table>{% for sc in p.script.scenes %}<tr><td>{{ sc.id }}</td><td>{{ sc.duration }}s</td><td>{{ sc.visual }}</td><td>{{ sc.voiceover }}</td></tr>{% endfor %}</table>
+  <p><strong>CTA:</strong> {{ p.script.cta }}</p>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Nhật ký</h2>
+  <div class="log">{% for line in p.log|reverse %}{{ line }}<br>{% endfor %}</div>
+</div>
+{% endblock %}

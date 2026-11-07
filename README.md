@@ -1,39 +1,64 @@
-# GenerateVideoTool – MVP (Tuần 1–2)
+# GenerateVideoTool
 
-Luồng: **Claude viết kịch bản → Cổng 1 (duyệt trên web) → Claude phân cảnh → Seedance render 480p → FFmpeg ghép demo 360×640 có phụ đề.**
+Hệ thống tự động tạo video ngắn theo workflow, từ ý tưởng đến đăng bài:
 
-## Cài đặt (Windows)
+**Ý tưởng → Kịch bản → Phản biện → Cổng 1 (duyệt kịch bản) → Đạo diễn phân cảnh → Lời thoại (TTS) → Hình/Video (AI video · ảnh AI · stock) → Nhạc nền → Dựng FFmpeg (phụ đề, logo, ducking, -14 LUFS) → QA (kỹ thuật + Claude vision) → SEO + thumbnail → Cổng 2 (duyệt video) → Đăng YouTube / TikTok / Facebook / Instagram → Thống kê & insights**
 
-1. Cài Python 3.10+ và FFmpeg: `winget install Python.Python.3.12` và `winget install Gyan.FFmpeg` (mở terminal mới sau khi cài).
-2. Trong thư mục này:
-   ```bat
-   python -m venv .venv
-   .venv\Scripts\activate
-   pip install -r requirements.txt
-   copy .env.example .env
-   ```
-3. Mở `.env`, điền `ANTHROPIC_API_KEY` và `ARK_API_KEY` (BytePlus ModelArk). Kiểm tra `SEEDANCE_MODEL` đúng model mà tài khoản của bạn được bật.
-4. Chạy `python run.py` rồi mở http://127.0.0.1:8000
+Không có API key vẫn chạy được: module nào thiếu key sẽ tự giả lập để bạn xem trọn luồng mà không tốn tiền.
 
-Chưa có key? Cứ chạy: hệ thống tự dùng **chế độ thử** (kịch bản mẫu + video test) để bạn xem trọn luồng mà không tốn tiền.
+## Bắt đầu nhanh
 
-## Cấu trúc
-
-| File | Vai trò |
+| Bạn muốn | Đọc |
 | --- | --- |
-| `app/schemas.py` | Schema JSON: Script, ShotList, Project |
-| `app/claude_client.py` | Gọi Claude, ép trả về đúng schema (tool use) |
-| `app/script_writer.py` | Agent Biên kịch (Bước 2) |
-| `app/director.py` | Agent Đạo diễn: shot list + prompt Seedance (Bước 3) |
-| `app/seedance.py` | Gọi API Seedance: tạo task, chờ, tải video; retry khi lỗi 429/5xx |
-| `app/assembler.py` | FFmpeg: chuẩn hóa, nối, phụ đề |
-| `app/pipeline.py` | Điều phối, chạy nền, render song song |
-| `app/web.py` + `templates/` | Giao diện duyệt |
-| `data/projects/<id>/` | project.json, shots/, demo.mp4 |
+| Cài và chạy trên máy Windows | [docs/1_CAI_DAT_VA_CHAY_WINDOWS.md](docs/1_CAI_DAT_VA_CHAY_WINDOWS.md) |
+| Deploy lên VPS (Docker, HTTPS) | [docs/2_DEPLOY_VPS.md](docs/2_DEPLOY_VPS.md) |
+| Lấy API key, kết nối tài khoản đăng bài | [docs/3_CAU_HINH_API_VA_TAI_KHOAN.md](docs/3_CAU_HINH_API_VA_TAI_KHOAN.md) |
+| Hiểu kiến trúc, mở rộng hệ thống | [docs/4_KIEN_TRUC.md](docs/4_KIEN_TRUC.md) |
+| Gặp lỗi | [docs/5_XU_LY_LOI.md](docs/5_XU_LY_LOI.md) |
 
-## Ghi chú
+Tóm tắt trên Windows:
 
-- Seedance yêu cầu thời lượng tối thiểu mỗi lần gọi (mặc định 4s). Cảnh ngắn hơn sẽ được render 4s rồi cắt bớt khi ghép.
-- Seed được lưu cho từng shot. Chỉ bật `SEEDANCE_SEND_SEED=1` nếu model của bạn hỗ trợ tham số `seed`.
-- `cost_log` trong project.json ghi token Claude và usage Seedance của từng bước để tính giá thành/video.
-- Giai đoạn sau: Cổng 2 chọn take, render Full HD, nhạc Suno, Cổng 3.
+```bat
+setup_windows.bat      :: cài thư viện, tạo .env, kiểm tra FFmpeg
+notepad .env           :: điền ANTHROPIC_API_KEY, ARK_API_KEY...
+start.bat              :: mở http://127.0.0.1:8000
+```
+
+Tóm tắt trên VPS:
+
+```bash
+cp .env.example .env && nano .env      # điền key, đặt WEB_USER/WEB_PASSWORD
+docker compose up -d --build
+```
+
+## Module và AI sử dụng
+
+| Bước | File | AI / công cụ |
+| --- | --- | --- |
+| 1. Ý tưởng | `app/idea_generator.py` | Claude (đọc thêm `data/insights.md`) |
+| 2. Kịch bản | `app/script_writer.py` | Claude |
+| 2b. Phản biện | `app/critic.py` | Claude, chấm điểm và yêu cầu viết lại nếu dưới ngưỡng |
+| Cổng 1 | giao diện web | Người duyệt (hoặc tự duyệt) |
+| 3. Đạo diễn | `app/director.py` | Claude: cỡ cảnh, góc máy, prompt, chọn nguồn hình từng cảnh |
+| 5. Lời thoại | `app/tts.py` | Edge TTS (miễn phí) · ElevenLabs · FPT.AI |
+| 6. Hình/Video | `app/visuals.py` | Seedance · fal.ai (Kling/Wan/Veo, Flux) · Pexels, tự chuyển nguồn khi lỗi |
+| 7. Nhạc | `app/music.py` | Thư viện nhạc của bạn trong `assets/music` |
+| 8. Dựng | `app/assembler.py`, `app/subtitles.py` | FFmpeg: Ken Burns, phụ đề karaoke, logo, ducking, loudnorm |
+| 9. QA | `app/qa.py` | FFprobe + Claude vision |
+| 10. SEO | `app/seo.py`, `app/thumbnail.py` | Claude + Pillow |
+| Cổng 2 | giao diện web | Người duyệt (hoặc tự đăng khi QA đạt) |
+| 11. Đăng | `app/publishers/` | YouTube Data API · TikTok Content Posting API · Meta Graph API |
+| 12. Thống kê | `app/analytics.py` | YouTube API + Claude rút bài học |
+| Điều phối | `app/pipeline.py`, `app/scheduler.py` | Python, chạy nền, tiếp tục được khi lỗi, lịch tự động |
+
+## Lệnh dòng lệnh
+
+```bash
+python -m app.cli check                                # kiểm tra cấu hình
+python -m app.cli run --topic "Chủ đề..." --duration 30   # tạo 1 video, tự duyệt
+python -m app.cli run --auto --publish youtube,tiktok     # AI tự nghĩ ý tưởng, tạo và đăng
+python -m app.cli resume <project_id>                     # chạy tiếp dự án dở
+python -m app.cli youtube-auth                            # đăng nhập YouTube lần đầu
+python -m app.cli analytics                               # cập nhật số liệu + insights
+pytest -q                                                 # kiểm thử toàn luồng ở chế độ giả lập
+```

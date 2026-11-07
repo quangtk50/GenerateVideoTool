@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h1>Thống kê &amp; bài học</h1>
+  <p class="muted">Hệ thống lấy số liệu YouTube hằng ngày (ANALYTICS_TIME) khi bật lịch tự động; agent phân tích ghi bài học vào data/insights.md,
+    agent ý tưởng sẽ đọc file này ở lần tạo video tiếp theo.</p>
+  <form method="post" action="/insights/run"><button class="primary">Cập nhật số liệu &amp; insights ngay</button></form>
+</div>
+<div class="card">
+  <h2>Insights hiện tại</h2>
+  {% if text %}<pre>{{ text }}</pre>{% else %}<p class="muted">Chưa có. Cần ít nhất 3 video đã đăng YouTube thật có số liệu.</p>{% endif %}
+</div>
+<div class="card">
+  <h2>Số liệu mới nhất</h2>
+  {% if rows %}<table><tr><th>Video</th><th>Views</th><th>Likes</th><th>Bình luận</th><th>Cập nhật</th></tr>
+  {% for p in rows %}{% set s = p.stats[-1] %}<tr><td><a href="/projects/{{ p.id }}">{{ p.script.title if p.script else p.brief.topic }}</a></td>
+    <td>{{ s.views }}</td><td>{{ s.likes }}</td><td>{{ s.comments }}</td><td class="muted">{{ s.at.replace('T',' ') }}</td></tr>{% endfor %}</table>
+  {% else %}<p class="muted">Chưa có số liệu.</p>{% endif %}
+</div>
+{% endblock %}

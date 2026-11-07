@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h1>Tạo video mới</h1>
+  <form method="post" action="/projects">
+    <label>Chủ đề / ý tưởng</label>
+    <textarea name="topic" required placeholder="VD: 3 thói quen buổi sáng giúp làm việc hiệu quả hơn"></textarea>
+    <div class="row">
+      <div><label>Nền tảng</label><select name="platform"><option>TikTok</option><option>Reels</option><option>YouTube Shorts</option></select></div>
+      <div><label>Thời lượng (giây)</label><input type="number" name="duration" value="30" min="10" max="90"></div>
+      <div><label>Tone</label><input name="tone" value="cuốn hút, cảm xúc"></div>
+      <div><label>Đối tượng</label><input name="audience" placeholder="VD: dân văn phòng 22-30"></div>
+      <div><label>Ngôn ngữ</label><input name="language" value="Tiếng Việt"></div>
+      <div><label>Độ phân giải</label><select name="resolution">
+        {% for r in resolutions %}{% set s = frame_size(r) %}
+        <option value="{{ r }}" {% if r == default_resolution %}selected{% endif %}>{{ r }} ({{ s[0] }}×{{ s[1] }})</option>
+        {% endfor %}</select></div>
+    </div>
+    <div class="actions">
+      <button class="primary" type="submit">Viết kịch bản</button>
+      <button class="ok" type="submit" formaction="/projects/auto" formnovalidate
+              title="Không cần nhập chủ đề: AI tự nghĩ ý tưởng, đối tượng, tone rồi viết kịch bản">
+        Tự tạo ý tưởng &amp; viết kịch bản</button>
+    </div>
+    <p class="muted">Không muốn nghĩ chủ đề? Bấm nút xanh — AI tự chọn ý tưởng (dùng Nền tảng, Thời lượng, Ngôn ngữ, Độ phân giải ở trên).</p>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Dự án</h2>
+  {% if projects %}
+  <table>
+    <tr><th>Tạo lúc</th><th>Chủ đề</th><th>Trạng thái</th></tr>
+    {% for p in projects %}
+    <tr><td class="muted">{{ p.created_at.replace('T',' ') }}</td>
+        <td><a href="/projects/{{ p.id }}">{{ p.script.title if p.script else p.brief.topic }}</a></td>
+        <td><span class="badge {{ p.status.value }}">{{ labels[p.status] }}</span></td></tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="muted">Chưa có dự án nào.</p>{% endif %}
+</div>
+{% endblock %}

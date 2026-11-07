@@ -1,0 +1,16 @@
+# Chạy không dùng Docker trên Ubuntu (systemd). Sửa đường dẫn /opt/GenerateVideoTool nếu khác.
+# sudo cp deploy/gvt.service /etc/systemd/system/ && sudo systemctl enable --now gvt
+[Unit]
+Description=GenerateVideoTool
+After=network-online.target
+
+[Service]
+WorkingDirectory=/opt/GenerateVideoTool
+ExecStart=/opt/GenerateVideoTool/.venv/bin/python run.py
+Restart=always
+RestartSec=5
+User=gvt
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

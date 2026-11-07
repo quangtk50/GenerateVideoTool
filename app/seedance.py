@@ -1,11 +1,10 @@
-"""Bước 4 - Gọi Seedance (BytePlus ModelArk) để render từng shot.
+"""Video AI - Seedance (BytePlus ModelArk).
 
 REST:
   POST {ARK_BASE_URL}/contents/generations/tasks      -> {"id": "..."}
   GET  {ARK_BASE_URL}/contents/generations/tasks/{id} -> {"status": ..., "content": {"video_url": ...}}
 """
 import math
-import subprocess
 import time
 from pathlib import Path
 from typing import Optional
@@ -13,6 +12,7 @@ from typing import Optional
 import httpx
 
 from . import config
+from .ffutil import download
 
 
 class SeedanceError(RuntimeError):
@@ -44,7 +44,7 @@ class SeedanceClient:
             "resolution": resolution,
             "ratio": ratio,
             "duration": duration,
-            "generate_audio": False,   # nhạc ghép riêng ở bước sau
+            "generate_audio": False,   # lời thoại + nhạc ghép riêng
             "watermark": False,
         }
         if seed is not None and config.SEEDANCE_SEND_SEED:
@@ -70,14 +70,8 @@ class SeedanceClient:
             time.sleep(interval)
         raise SeedanceError(f"Task {task_id} quá thời gian chờ {timeout}s")
 
-    def download(self, url: str, dest: Path) -> None:
-        with httpx.stream("GET", url, timeout=300, follow_redirects=True) as r:
-            r.raise_for_status()
-            with open(dest, "wb") as f:
-                for chunk in r.iter_bytes():
-                    f.write(chunk)
-
     def _request(self, method: str, path: str, **kw) -> dict:
+        err = ""
         for attempt in range(4):
             try:
                 r = self.http.request(method, path, **kw)
@@ -94,28 +88,13 @@ class SeedanceClient:
         raise SeedanceError(f"Gọi API thất bại sau nhiều lần thử: {err}")
 
 
-def render_shot(prompt: str, seconds: float, seed: int, dest: Path) -> dict:
+def render_shot(prompt: str, seconds: float, seed: int, dest: Path, resolution: str) -> dict:
     """Render 1 shot ra file mp4. Trả về thông tin để ghi log (task_id, usage)."""
-    duration = api_duration(seconds)
-    if config.use_mock_seedance():
-        _mock_render(duration, seed, dest)
-        return {"task_id": f"mock-{seed}", "usage": {"mock": True, "seconds": duration}}
-
     client = SeedanceClient()
-    task_id = client.create(prompt, duration, config.DEMO_RESOLUTION, config.VIDEO_RATIO, seed=seed)
+    task_id = client.create(prompt, api_duration(seconds), resolution, config.VIDEO_RATIO, seed=seed)
     result = client.wait(task_id)
     url = (result.get("content") or {}).get("video_url")
     if not url:
         raise SeedanceError(f"Task {task_id} không có video_url: {result}")
-    client.download(url, dest)
+    download(url, dest)
     return {"task_id": task_id, "usage": result.get("usage", {})}
-
-
-def _mock_render(duration: int, seed: int, dest: Path) -> None:
-    """Video giả (màn hình test) để chạy thử pipeline không tốn tiền."""
-    hue = seed % 360
-    cmd = [config.FFMPEG_BIN, "-y", "-loglevel", "error",
-           "-f", "lavfi", "-i", f"testsrc2=s=480x854:r=24:d={duration}",
-           "-vf", f"hue=h={hue}", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(dest)]
-    subprocess.run(cmd, check=True)
-    time.sleep(1)

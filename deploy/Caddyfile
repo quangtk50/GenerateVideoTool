@@ -1,0 +1,8 @@
+# Caddy tự xin chứng chỉ HTTPS (Let's Encrypt) cho tên miền trong biến DOMAIN
+{$DOMAIN} {
+	encode gzip
+	request_body {
+		max_size 2GB
+	}
+	reverse_proxy app:8000
+}

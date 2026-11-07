@@ -6,42 +6,55 @@
 {% block head %}{% endblock %}
 <title>{% block title %}GenerateVideoTool{% endblock %}</title>
 <style>
-  :root { --bg:#f6f6f4; --card:#fff; --ink:#1d1d1b; --muted:#6b6b66; --line:#e2e2dc; --accent:#2f6fdb; --ok:#1f8a4c; --bad:#c23b2b; }
+  :root { --bg:#f6f6f4; --card:#fff; --ink:#1d1d1b; --muted:#6b6b66; --line:#e2e2dc; --accent:#2f6fdb; --ok:#1f8a4c; --bad:#c23b2b; --warn:#b7791f; }
   * { box-sizing: border-box; }
   body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--ink); }
-  header { padding:14px 24px; border-bottom:1px solid var(--line); background:var(--card); display:flex; gap:16px; align-items:center; }
+  header { padding:12px 24px; border-bottom:1px solid var(--line); background:var(--card); display:flex; gap:18px; align-items:center; flex-wrap:wrap; }
   header a { color:var(--ink); text-decoration:none; font-weight:600; }
-  main { max-width:1100px; margin:0 auto; padding:24px 16px 64px; }
+  header nav a { font-weight:500; color:var(--muted); margin-right:12px; }
+  .modules { margin-left:auto; display:flex; gap:6px; flex-wrap:wrap; }
+  .mod { font-size:11px; padding:2px 8px; border-radius:99px; background:#f0f0ec; color:var(--muted); }
+  .mod.on { background:#e8f5ee; color:var(--ok); }
+  main { max-width:1150px; margin:0 auto; padding:24px 16px 64px; }
   .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:18px; margin-bottom:18px; }
   h1 { font-size:22px; margin:0 0 6px; } h2 { font-size:17px; margin:0 0 12px; }
   label { display:block; font-size:13px; color:var(--muted); margin:10px 0 4px; }
+  label.inline { display:inline-flex; align-items:center; gap:6px; margin-right:14px; color:var(--ink); }
   input, textarea, select { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:6px; font:inherit; background:#fff; }
+  input[type=checkbox] { width:auto; }
   textarea { min-height:64px; resize:vertical; }
   button { padding:9px 16px; border-radius:6px; border:1px solid var(--line); background:#fff; font:inherit; cursor:pointer; }
   button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
   button.ok { background:var(--ok); color:#fff; border-color:var(--ok); }
   .row { display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:12px; }
+  .two { display:grid; grid-template-columns: minmax(260px, 360px) 1fr; gap:18px; }
+  @media (max-width: 760px) { .two { grid-template-columns: 1fr; } }
   .badge { display:inline-block; padding:3px 10px; border-radius:99px; font-size:12px; background:#eef2fb; color:var(--accent); }
-  .badge.demo_ready { background:#e8f5ee; color:var(--ok); } .badge.failed { background:#fbecea; color:var(--bad); }
+  .badge.review_script, .badge.review_final { background:#fff3dc; color:var(--warn); }
+  .badge.published, .badge.demo_ready { background:#e8f5ee; color:var(--ok); } .badge.failed { background:#fbecea; color:var(--bad); }
   table { width:100%; border-collapse:collapse; font-size:14px; } td, th { padding:8px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
   .muted { color:var(--muted); font-size:13px; } .err { color:var(--bad); }
+  .sev-high { color:var(--bad); font-weight:600; } .sev-medium { color:var(--warn); } .sev-low { color:var(--muted); }
   .scene { border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:12px; }
   .scene-head { display:flex; justify-content:space-between; align-items:center; gap:12px; }
-  .log { font-family: ui-monospace, Consolas, monospace; font-size:12px; max-height:240px; overflow:auto; background:#fafaf8; padding:10px; border-radius:6px; }
+  .log { font-family: ui-monospace, Consolas, monospace; font-size:12px; max-height:260px; overflow:auto; background:#fafaf8; padding:10px; border-radius:6px; }
   .warn { background:#fff6e0; border:1px solid #f1d58a; padding:8px 12px; border-radius:6px; font-size:13px; margin-bottom:16px; }
   video { max-width:100%; background:#000; border-radius:8px; }
-  .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; align-items:center; }
+  .steps { display:flex; gap:4px; flex-wrap:wrap; margin-top:10px; }
+  .step { font-size:11px; padding:3px 8px; border-radius:4px; background:#f0f0ec; color:var(--muted); }
+  .step.done { background:#e8f5ee; color:var(--ok); } .step.now { background:var(--accent); color:#fff; }
+  pre { white-space:pre-wrap; font-family:inherit; }
 </style>
 </head>
 <body>
-<header><a href="/">GenerateVideoTool</a><span class="muted">MVP · Claude → Cổng 1 → Seedance 480p → FFmpeg demo</span></header>
+<header>
+  <a href="/">GenerateVideoTool</a>
+  <nav><a href="/">Dự án</a><a href="/insights">Thống kê &amp; insights</a></nav>
+  <div class="modules">{% for k, v in modules.items() %}<span class="mod {{ 'on' if v }}" title="{{ 'đang chạy thật' if v else 'giả lập / tắt' }}">{{ k }}</span>{% endfor %}</div>
+</header>
 <main>
-{% if mock_claude or mock_seedance %}
-<div class="warn">Đang chạy chế độ thử:
-  {% if mock_claude %}Claude = dữ liệu giả (chưa có ANTHROPIC_API_KEY).{% endif %}
-  {% if mock_seedance %}Seedance = video test (chưa có ARK_API_KEY).{% endif %}
-  Điền key vào file .env rồi khởi động lại để chạy thật.</div>
-{% endif %}
+{% if dry_run %}<div class="warn">Đăng bài đang ở chế độ <b>DRY RUN</b> (chỉ giả lập). Đặt <code>PUBLISH_DRY_RUN=0</code> trong .env khi đã cấu hình tài khoản để đăng thật.</div>{% endif %}
 {% block content %}{% endblock %}
 </main>
 </body>

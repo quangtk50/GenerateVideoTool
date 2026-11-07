@@ -1,0 +1,35 @@
+# Chạy:   docker compose up -d --build
+# Có tên miền + HTTPS tự động:  đặt DOMAIN trong .env rồi  docker compose --profile https up -d --build
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      HOST: 0.0.0.0
+      DATA_ROOT: /data
+      ASSETS_DIR: /assets
+      SUB_FONT: DejaVu Sans
+      TZ: ${TZ:-Asia/Ho_Chi_Minh}
+    volumes:
+      - ./data:/data          # dự án, video, token đăng nhập (sao lưu thư mục này)
+      - ./assets:/assets      # nhạc nền, logo
+    ports:
+      - "127.0.0.1:8000:8000" # chỉ mở trong máy chủ; ra ngoài qua Caddy hoặc SSH tunnel
+
+  caddy:
+    image: caddy:2
+    profiles: ["https"]
+    restart: unless-stopped
+    depends_on: [app]
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+
+volumes:
+  caddy_data:
